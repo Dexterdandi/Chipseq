@@ -3,7 +3,7 @@
 # using MACS2 (sharp or broad peaks), Sicer (broad peaks) 
 # it is quite tricky to specify Input files if bam files need different Input
 #####################
-while getopts ":hD:I:mbSg:" opts; do
+while getopts ":hD:I:mbSg:f:" opts; do
     case "$opts" in
         "h")
             echo "script to call chipseq peak using macs2 (sharp or broad optioins and  sicer for broad peaks"
@@ -11,7 +11,8 @@ while getopts ":hD:I:mbSg:" opts; do
 	    echo "-D  (specfiy the ABSOLUTE directory of bam files or by default alignments/BAMs_All)"
 	    echo "-I (input, e.g. /groups/bell/jiwang/Projects/Jorge/Analysis_ChIP_seq/INPUT/merged_Input_49475_49911_49908.bam for mouse mm10)" 
 	    echo "no input file needed by defaut"
-            echo "-g (genome, i.e. mm10, ce11, hg19)"
+            echo "-f the format of input files: BAM (default) or BAMPE (paired_end, need to specify)"
+	    echo "-g (genome, i.e. mm10, ce11, hg19)"
 	    echo "-m (macs2 sharp peaks)"
 	    echo "-b (macs2 broad peaks)"
 	    echo "-S (sicer)"
@@ -28,6 +29,9 @@ while getopts ":hD:I:mbSg:" opts; do
         "I")
             INPUT="$OPTARG";
             ;;
+	"f")
+	    format="$OPTARG";
+	    ;;
 	"m")
 	    MACS2="TRUE"
 	    ;;
@@ -51,11 +55,15 @@ while getopts ":hD:I:mbSg:" opts; do
 done
 
 OUT=$PWD/Peaks
-nb_cores=4;
+nb_cores=2;
 cwd=`pwd`;
 
 if [ -z "$DIR_Bams" ]; then
     DIR_Bams="$PWD/alignments/BAMs_All"
+fi
+
+if [ -z "$format" ]; then
+    format="BAM"
 fi
 
 if [ "$genome" == "mm10" ]; then
@@ -102,10 +110,10 @@ for sample in ${DIR_Bams}/*.bam; do
 	cd $OUT/macs2
         #echo "peak calling with macs2"
 	if [ -n "$INPUT" ]; then # with input  
-	    qsub -q public.q -o $cwd/logs -j yes -pe smp $nb_cores -cwd -b y -shell y -N macs2 "module load macs/2.1.0; macs2 callpeak -t $sample -c $INPUT -n ${out}_macs2_pval_${pval} -f BAM -g $species_macs -p $pval --call-summits" 
+	    qsub -q public.q -o $cwd/logs -j yes -pe smp $nb_cores -cwd -b y -shell y -N macs2 "module load macs/2.1.0; macs2 callpeak -t $sample -c $INPUT -n ${out}_macs2_pval_${pval} -f $format -g $species_macs -p $pval --call-summits" 
 	
 	else # without input
-	    qsub -q public.q -o $cwd/logs -j yes -pe smp $nb_cores -cwd -b y -shell y -N macs2 "module load macs/2.1.0; macs2 callpeak -t $sample -n ${out}_macs2_pval_${pval} -f BAM -g $species_macs -p $pval --extsize 200 --call-summits" 
+	    qsub -q public.q -o $cwd/logs -j yes -pe smp $nb_cores -cwd -b y -shell y -N macs2 "module load macs/2.1.0; macs2 callpeak -t $sample -n ${out}_macs2_pval_${pval} -f $format -g $species_macs -p $pval --nomodel --extsize 200 --keep-dup all --call-summits" 
 	fi
 	cd $cwd
     fi
@@ -114,10 +122,10 @@ for sample in ${DIR_Bams}/*.bam; do
     if [ "$MACS2_broad" == "TRUE" ]; then
 	cd $OUT/macs2_broad
 	if [ -n "$INPUT" ]; then # with input
-	    qsub -q public.q -o $cwd/logs -j yes -pe smp $nb_cores -cwd -b y -shell y -N macs2_broad "module load macs/2.1.0; macs2 callpeak -t $sample -c $INPUT -n ${out}_macs2_broad_fdr_${fdr} -f BAM -g $species_macs --broad --broad-cutoff $fdr --extsize 200"
+	    qsub -q public.q -o $cwd/logs -j yes -pe smp $nb_cores -cwd -b y -shell y -N macs2_broad "module load macs/2.1.0; macs2 callpeak -t $sample -c $INPUT -n ${out}_macs2_broad_fdr_${fdr} -f $format -g $species_macs --broad --broad-cutoff $fdr --extsize 200"
 	
 	else # without input
-	    qsub -q public.q -o $cwd/logs -j yes -pe smp $nb_cores -cwd -b y -shell y -N macs2_broad "module load macs/2.1.0; macs2 callpeak -t $sample -n ${out}_macs2_broad_fdr_${fdr} -f BAM -g $species_macs --broad --broad-cutoff $fdr --extsize 200"
+	    qsub -q public.q -o $cwd/logs -j yes -pe smp $nb_cores -cwd -b y -shell y -N macs2_broad "module load macs/2.1.0; macs2 callpeak -t $sample -n ${out}_macs2_broad_fdr_${fdr} -f $format -g $species_macs --broad --broad-cutoff $fdr --extsize 200"
 	fi
 	cd $cwd
     fi
