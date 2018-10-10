@@ -7,6 +7,11 @@ library("Vennerable") #install.packages("Vennerable", repos="http://R-Forge.R-pr
 library("ggplot2")
 library("GenomicFeatures")
 
+########################################################
+########################################################
+# Section: legacy codes from Thomas Burkard
+########################################################
+########################################################
 venn_cnt2venn <- function(venn_cnt){
   n <- which(colnames(venn_cnt)=="Counts") - 1
   SetNames=colnames(venn_cnt)[1:n]
@@ -197,15 +202,12 @@ doAllPlot <- function(set, allPeaksList)
 #    dev.off()
 #  }
 
-
-
-
-#ChipQC
-#library(ChIPQC)
-#samples <- read.delim("Jorge_Arturo.Zepeda_Martinez.chipqc.txt")
-#experiment = ChIPQC(samples)
-#experiment
-#ChIPQCreport(experiment)
+########################################################
+########################################################
+# Section: Quality control parts 
+# including peak overlapping check
+########################################################
+########################################################
 PLOT.Quality.Controls.Summary = function(stat, index)
 {
   par(mfrow=c(2,2))
@@ -254,24 +256,58 @@ PLOT.Quality.Controls.Summary = function(stat, index)
   
 }
 
+
+make.design.matrix.from.peaks.files = function(peak.files)
+{
+  cat("-- parsing design matrix\n")
+  bname = basename(peak.files)
+  xx = c()
+  yy = c()
+  for(n in 1:length(bname))
+  {
+    test = bname[n];
+    test = unlist(strsplit(as.character(test), "_"))
+    xx = c(xx, test[1])
+    #test = unlist(strsplit(as.character(test), "[.]"))[-1]
+    #test = paste0(test, collapse = ".")
+    yy = c(yy, test[2])
+  }
+  design = data.frame(yy, xx)
+  
+  #design = data.frame(sapply(bname, find.samples.conditions, ID='conditions'), sapply(bname, find.samples.conditions, ID='samples'),
+  #                    stringsAsFactors = FALSE)
+  design.matrix = data.frame(peak.files, bname, design, stringsAsFactors = FALSE)
+  
+  colnames(design.matrix) = c('file.path', 'file.name', 'condition', 'factor')
+  design.matrix = design.matrix[with(design.matrix, order(factor, condition)), ];
+  
+  factor.condition = paste0(design.matrix$factor, '_', design.matrix$condition)
+  design.matrix = data.frame(design.matrix, factor.condition, stringsAsFactors = FALSE)
+  
+}
+
 Comparison.overlapping.peaks = function(design.matrix, peaks.list, toCompare="factor.condition", pval=10, PLOT.p10 = FALSE, qval=0.1) 
 {
+  
   if(toCompare == "factor"){
-    cat("DB analysis for each factor across condition \n")
-    cat("Should merge peaks for all replicates \n")
+    cat("Warning ---- DB analysis for each factor across condition \n")
+    cat("Warning ---- Should merge peaks for all replicates \n")
+    
+  }else{
+    cat("checking peak overlapping for",  toCompare, "\n")
+    if(toCompare=="factor.condition"){
+     cat("--compare peak overlapping for replicates--\n") 
+    }
+    sels2compare = unique(design.matrix[, which(colnames(design.matrix)==toCompare)]);
     
   }
-  if(toCompare=="factor.condition"){
-    cat("Quality control by compare peaks from replicates \n")
-    sels2compare = unique(design.matrix$factor.condition)
-  }
-
+  
   for(nn in sels2compare)
   {
     #nn = "H3K27me3_AN312"
     #nn = "Eed_ko_AK119ub"
     cat(nn, '\n')
-    kk = which(design.matrix$factor.condition==nn)
+    kk = which(design.matrix[, which(colnames(design.matrix)==toCompare)]==nn)
     #if(DB.Analysis){
     #  kk = which(ff$sample==nn)
     #}else{
@@ -314,6 +350,8 @@ Comparison.overlapping.peaks = function(design.matrix, peaks.list, toCompare="fa
         v <- venn_cnt2venn(ol.peaks$vennCounts)
         try(plot(v))
       }
+    }else{
+      cat("Error --- less than 2 samples selected to compare for ", sels2compare[nn], "\n")
     }
   }
   
@@ -347,6 +385,11 @@ find.samples.conditions = function(x, ID='samples')
   }
 }
 
+########################################################
+########################################################
+# Section: Differential Binding (DB) analysis after counting reads within peaks
+########################################################
+########################################################
 Assess.ChIPseq.Quality.4DB = function(dds, batch = FALSE) ### Input is DEseq2 object from read counts within peak union across condition
 {
   require(lattice);
