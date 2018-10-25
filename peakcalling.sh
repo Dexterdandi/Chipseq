@@ -126,10 +126,10 @@ for sample in ${DIR_Bams}/*.bam; do
     if [ "$MACS2_broad" == "TRUE" ]; then
 	cd $OUT/macs2_broad
 	if [ -n "$INPUT" ]; then # with input
-	    qsub -q public.q -o $cwd/logs -j yes -pe smp $nb_cores -cwd -b y -shell y -N macs2_broad "module load macs/2.1.0; macs2 callpeak -t $sample -c $INPUT -n ${out}_macs2_broad_fdr_${fdr} -f $format -g $species_macs --broad --broad-cutoff $fdr --extsize 200"
+	    qsub -q public.q -o $cwd/logs -j yes -pe smp $nb_cores -cwd -b y -shell y -N macs2_broad "module load macs/2.1.0; macs2 callpeak -t $sample -c $INPUT -n ${out}_macs2_broad_fdr_${fdr} -f BAM -g $species_macs --nomodel --broad --extsize 200"
 	
 	else # without input
-	    qsub -q public.q -o $cwd/logs -j yes -pe smp $nb_cores -cwd -b y -shell y -N macs2_broad "module load macs/2.1.0; macs2 callpeak -t $sample -n ${out}_macs2_broad_fdr_${fdr} -f $format -g $species_macs --broad --broad-cutoff $fdr --extsize 200"
+	    qsub -q public.q -o $cwd/logs -j yes -pe smp $nb_cores -cwd -b y -shell y -N macs2_broad "module load macs/2.1.0; macs2 callpeak -t $sample -n ${out}_macs2_broad_fdr_${fdr} -f BAM -g $species_macs --nomodel --broad --extsize 200"
 	fi
 	cd $cwd
     fi
